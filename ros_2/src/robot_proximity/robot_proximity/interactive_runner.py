@@ -235,7 +235,7 @@ def generate_launch_description():
             )
         )
 
-    return LaunchDescription([
+    ld_nodes = [
         *robot_nodes,
 
         Node(
@@ -253,15 +253,21 @@ def generate_launch_description():
             executable='graph_visualizer',
             name='graph_visualizer',
             output='screen'
-        ),
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            arguments=['-d', rviz_config_dir],
-            output='screen'
         )
-    ])
+    ]
+
+    if 'DISPLAY' in os.environ:
+        ld_nodes.append(
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                name='rviz2',
+                arguments=['-d', rviz_config_dir],
+                output='screen'
+            )
+        )
+
+    return LaunchDescription(ld_nodes)
 """
 
 
