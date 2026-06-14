@@ -1,5 +1,5 @@
 ---
-title: ROS Project Runner
+title: ROS Simulation Dashboard
 emoji: 🤖
 colorFrom: indigo
 colorTo: purple
@@ -8,8 +8,9 @@ app_port: 7860
 pinned: false
 ---
 
-# 🤖 ROS Project Runner
+# 🤖 ROS Simulation Dashboard
 
-A web-based dashboard and interactive simulator built to run multi-agent ROS 2 (Humble) systems. 
+A web-based dashboard and interactive simulator built to run multi-agent ROS 2 (Humble) systems.
 
-This repository is configured to deploy directly to Hugging Face Spaces using Docker. It runs a full desktop environment in the background using Xvfb, fluxbox, and noVNC, and embeds the interactive 3D RViz2 visualizer directly into the webpage dashboard!
+This repository is configured to deploy directly to Hugging Face Spaces using Docker, launching a clean headless ROS 2 environment. Users can control and monitor multiple ROS 2 project simulations, sending interactive command inputs and viewing live console streams directly in the browser!
+
