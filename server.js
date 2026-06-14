@@ -6,6 +6,7 @@ const path = require('path');
 const os = require('os');
 
 const fs = require('fs');
+const WebSocket = require('ws');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,8 +14,44 @@ const io = socketIO(server, {
   cors: { origin: '*' }
 });
 
+// ── WebSocket proxy: /foxglove-ws → foxglove_bridge on :8765 ─────────────────
+// Hugging Face only exposes port 7860, so we proxy foxglove traffic through here
+const FOXGLOVE_PORT = 8765;
+server.on('upgrade', (req, socket, head) => {
+  if (req.url === '/foxglove-ws') {
+    const target = new WebSocket(`ws://127.0.0.1:${FOXGLOVE_PORT}`, {
+      headers: req.headers
+    });
+    target.on('open', () => {
+      // Duplex pipe between browser and foxglove_bridge
+      socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n');
+    });
+    target.on('message', (data, isBinary) => {
+      socket.write(data);
+    });
+    target.on('error', () => socket.destroy());
+    target.on('close', () => socket.destroy());
+    socket.on('data', data => {
+      if (target.readyState === WebSocket.OPEN) target.send(data);
+    });
+    socket.on('error', () => target.terminate());
+    socket.on('end', () => target.terminate());
+  }
+});
+
 app.use(express.static('public'));
 app.use(express.json());
+
+// ── API: expose environment config to frontend ────────────────────────────────
+app.get('/api/env', (req, res) => {
+  const foxglove = process.env.FOXGLOVE_BRIDGE === 'true';
+  // On HF Spaces, the public URL is the space host with /foxglove path proxied
+  // We use port 8765 for foxglove bridge websocket
+  res.json({
+    foxgloveBridge: foxglove,
+    foxglovePort: 8765
+  });
+});
 
 const HOME = os.homedir();
 const DESKTOP_PATH = path.join(HOME, 'Desktop', 'ros_full');
@@ -66,6 +103,7 @@ function killActiveProcess(notifySocket, reason) {
     execSync('pkill -9 -f "graph_visualizer" 2>/dev/null || true');
     execSync('pkill -9 -f "interactive_runner" 2>/dev/null || true');
     execSync('pkill -9 -f "rviz2" 2>/dev/null || true');
+    execSync('pkill -9 -f "foxglove_bridge" 2>/dev/null || true');
     execSync('source /opt/ros/humble/setup.bash && ros2 daemon stop 2>/dev/null || true', { shell: '/bin/bash' });
   } catch (_) {}
 
@@ -106,6 +144,7 @@ try {
   execSync('pkill -9 -f "graph_visualizer" 2>/dev/null || true');
   execSync('pkill -9 -f "interactive_runner" 2>/dev/null || true');
   execSync('pkill -9 -f "rviz2" 2>/dev/null || true');
+  execSync('pkill -9 -f "foxglove_bridge" 2>/dev/null || true');
   execSync('source /opt/ros/humble/setup.bash && ros2 daemon stop 2>/dev/null || true', { shell: '/bin/bash' });
   console.log('[SYSTEM] Cleanup complete.');
 } catch (e) {

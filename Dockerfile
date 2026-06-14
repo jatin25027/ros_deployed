@@ -1,10 +1,10 @@
 # ── HuggingFace Spaces Dockerfile ────────────────────────────────────────────
 FROM osrf/ros:humble-desktop
 
-# Install NodeJS 20
+# Install NodeJS 20 + Foxglove Bridge
 RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
+    apt-get install -y nodejs ros-humble-foxglove-bridge && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user (Hugging Face runs with UID 1000)
@@ -40,6 +40,8 @@ ENV AMENT_PREFIX_PATH=/opt/ros/humble
 ENV ROS_DISTRO=humble
 ENV PYTHONPATH=/opt/ros/humble/local/lib/python3.10/dist-packages
 ENV PORT=7860
+# Tell the app that Foxglove Bridge is available
+ENV FOXGLOVE_BRIDGE=true
 
 EXPOSE 7860
 

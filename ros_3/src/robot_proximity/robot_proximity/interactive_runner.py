@@ -323,6 +323,22 @@ def generate_launch_description():
                 output='screen'
             )
         )
+    elif os.environ.get('FOXGLOVE_BRIDGE') == 'true':
+        ld_nodes.append(
+            Node(
+                package='foxglove_bridge',
+                executable='foxglove_bridge',
+                name='foxglove_bridge',
+                parameters=[{{
+                    'port': 8765,
+                    'address': '0.0.0.0',
+                    'tls': False,
+                    'topic_whitelist': ['.*'],
+                    'send_buffer_limit': 10000000
+                }}],
+                output='screen'
+            )
+        )
 
     return LaunchDescription(ld_nodes)
 """

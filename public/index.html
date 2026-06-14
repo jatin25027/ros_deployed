@@ -3,109 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ROS Project Runner</title>
+  <title>ROS Simulation Dashboard</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
       min-height: 100vh;
       padding: 20px;
     }
 
-    .container { max-width: 1400px; margin: 0 auto; }
+    .container { max-width: 1800px; margin: 0 auto; }
 
-    header { text-align: center; color: white; margin-bottom: 30px; }
-    header h1 { font-size: 2.5em; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
-    header p { font-size: 1.1em; opacity: 0.9; }
+    header { text-align: center; color: white; margin-bottom: 24px; }
+    header h1 { font-size: 2.4em; margin-bottom: 6px; text-shadow: 0 0 30px rgba(102,126,234,0.8); letter-spacing: 1px; }
+    header p { font-size: 1em; opacity: 0.7; }
 
     .main-layout {
       display: grid;
-      grid-template-columns: 340px 1fr;
-      gap: 20px;
-      max-width: 100%;
+      grid-template-columns: 300px 1fr;
+      gap: 18px;
     }
 
-    .main-layout.has-vnc {
-      grid-template-columns: 340px 1fr 1.6fr;
+    /* When foxglove is active, add 3rd column */
+    .main-layout.has-foxglove {
+      grid-template-columns: 280px 1fr 1.8fr;
     }
 
-    /* Simulation section styles */
-    .simulation-section {
+    /* ── 3D Visualizer Panel ── */
+    .viz-section {
       display: none;
-      background: white;
-      border-radius: 15px;
-      padding: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
       flex-direction: column;
-      height: 620px;
+      height: 680px;
     }
-    
-    .main-layout.has-vnc .simulation-section {
+
+    .main-layout.has-foxglove .viz-section {
       display: flex;
     }
 
-    .simulation-header {
+    .viz-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .simulation-header h2 { color: #333; font-size: 1.2em; }
+    .viz-header h2 { color: #c3cbff; font-size: 1.1em; }
 
-    .vnc-container {
-      flex: 1;
-      background: #000;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid #2d2d44;
+    .viz-status {
+      font-size: 0.75em;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.07);
+      color: #aaa;
     }
+    .viz-status.live { background: rgba(46,204,113,0.2); color: #2ecc71; }
+
+    .viz-frame-wrap {
+      flex: 1;
+      background: #0a0a12;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+    }
+
+    .viz-frame-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .viz-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: rgba(255,255,255,0.3);
+      gap: 12px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .viz-placeholder .icon { font-size: 3.5em; }
+    .viz-placeholder p { font-size: 0.9em; line-height: 1.6; }
+    .viz-placeholder small { font-size: 0.78em; opacity: 0.6; }
 
     /* ── Cards ── */
     .cards-section {
-      background: white;
-      border-radius: 15px;
-      padding: 25px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
       align-self: start;
     }
-    .cards-section h2 { margin-bottom: 18px; color: #333; font-size: 1.1em; letter-spacing: .5px; }
+    .cards-section h2 { margin-bottom: 16px; color: #c3cbff; font-size: 1em; letter-spacing: .5px; text-transform: uppercase; }
 
-    .cards-container { display: flex; flex-direction: column; gap: 14px; }
+    .cards-container { display: flex; flex-direction: column; gap: 12px; }
 
     .project-card {
-      padding: 18px;
+      padding: 16px;
       border-radius: 10px;
       cursor: pointer;
       transition: all 0.25s ease;
-      border: 2px solid #e0e0e0;
-      position: relative;
-      overflow: hidden;
-      background: white;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: white;
     }
-    .project-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+    .project-card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.09); }
 
-    /* Colour variants */
-    .project-card.ros_2 { border-left: 5px solid #3498db; }
-    .project-card.ros_2:hover { border-color: #3498db; box-shadow: 0 8px 20px rgba(52,152,219,.25); }
-    .project-card.ros_3 { border-left: 5px solid #e74c3c; }
-    .project-card.ros_3:hover { border-color: #e74c3c; box-shadow: 0 8px 20px rgba(231,76,60,.25); }
-    .project-card.ros_4 { border-left: 5px solid #2ecc71; }
-    .project-card.ros_4:hover { border-color: #2ecc71; box-shadow: 0 8px 20px rgba(46,204,113,.25); }
+    .project-card.ros_2 { border-left: 4px solid #3498db; }
+    .project-card.ros_3 { border-left: 4px solid #e74c3c; }
+    .project-card.ros_4 { border-left: 4px solid #2ecc71; }
 
-    /* Active / disabled states */
-    .project-card.is-active { opacity: 1 !important; }
-    .project-card.is-disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
+    .project-card.is-active { opacity: 1 !important; background: rgba(255,255,255,0.1); }
+    .project-card.is-disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
-    .project-card h3 { margin-bottom: 5px; color: #333; font-size: 1.1em; }
-    .project-card .sub { color: #888; font-size: 0.78em; margin-bottom: 10px; }
+    .project-card h3 { margin-bottom: 4px; font-size: 1em; }
+    .project-card .sub { color: rgba(255,255,255,0.5); font-size: 0.75em; margin-bottom: 10px; line-height: 1.4; }
 
     .badge {
       display: inline-flex;
@@ -113,18 +140,18 @@
       gap: 6px;
       padding: 3px 10px;
       border-radius: 20px;
-      font-size: 0.8em;
+      font-size: 0.76em;
       font-weight: 600;
     }
-    .badge.idle  { background: #eee; color: #666; }
-    .badge.building { background: #fff3cd; color: #856404; }
-    .badge.running  { background: #d4edda; color: #155724; }
+    .badge.idle  { background: rgba(255,255,255,0.08); color: #aaa; }
+    .badge.building { background: rgba(255,165,0,0.2); color: #ffb347; }
+    .badge.running  { background: rgba(46,204,113,0.2); color: #2ecc71; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
       display: inline-block;
-      width: 10px; height: 10px;
-      border: 2px solid #ccc;
+      width: 9px; height: 9px;
+      border: 2px solid rgba(255,255,255,0.3);
       border-top-color: currentColor;
       border-radius: 50%;
       animation: spin .8s linear infinite;
@@ -132,13 +159,15 @@
 
     /* ── Output panel ── */
     .output-section {
-      background: white;
-      border-radius: 15px;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
       display: flex;
       flex-direction: column;
-      height: 620px;
+      height: 680px;
     }
 
     .output-header {
@@ -146,54 +175,54 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .output-header h2 { color: #333; font-size: 1.2em; }
+    .output-header h2 { color: #c3cbff; font-size: 1.1em; }
 
     .header-btns { display: flex; gap: 8px; }
 
     .btn {
-      padding: 7px 14px;
+      padding: 6px 14px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.88em;
+      font-size: 0.82em;
       font-weight: 600;
       transition: all .2s;
     }
-    .btn:disabled { opacity: .45; cursor: not-allowed; }
-    .btn-clear { background: #95a5a6; color: white; }
-    .btn-clear:hover:not(:disabled) { background: #7f8c8d; }
-    .btn-stop  { background: #e74c3c; color: white; }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-clear { background: rgba(255,255,255,0.1); color: #ccc; }
+    .btn-clear:hover:not(:disabled) { background: rgba(255,255,255,0.18); }
+    .btn-stop  { background: rgba(231,76,60,0.7); color: white; }
     .btn-stop:hover:not(:disabled)  { background: #c0392b; }
 
     /* Active project banner */
     .active-banner {
       display: none;
-      padding: 8px 14px;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      font-size: 0.88em;
+      padding: 7px 12px;
+      border-radius: 7px;
+      margin-bottom: 10px;
+      font-size: 0.82em;
       font-weight: 600;
       border-left: 4px solid;
     }
-    .active-banner.ros_2 { background: #ebf5fb; border-color: #3498db; color: #1a5276; }
-    .active-banner.ros_3 { background: #fdedec; border-color: #e74c3c; color: #7b241c; }
-    .active-banner.ros_4 { background: #eafaf1; border-color: #2ecc71; color: #1e8449; }
+    .active-banner.ros_2 { background: rgba(52,152,219,0.15); border-color: #3498db; color: #87ceeb; }
+    .active-banner.ros_3 { background: rgba(231,76,60,0.15); border-color: #e74c3c; color: #ff8c8c; }
+    .active-banner.ros_4 { background: rgba(46,204,113,0.15); border-color: #2ecc71; color: #90ee90; }
 
     /* Terminal */
     .output-terminal {
       flex: 1;
-      background: #1a1a2e;
+      background: #0d0d1a;
       border-radius: 8px;
       padding: 14px;
       overflow-y: auto;
       font-family: 'Courier New', monospace;
-      font-size: 0.88em;
+      font-size: 0.84em;
       color: #e0e0e0;
       margin-bottom: 12px;
-      border: 1px solid #2d2d44;
+      border: 1px solid rgba(255,255,255,0.07);
     }
     .output-line { margin: 2px 0; word-wrap: break-word; white-space: pre-wrap; line-height: 1.5; }
     .line-building  { color: #ffb347; }
@@ -209,17 +238,20 @@
     .input-field {
       flex: 1;
       padding: 9px 12px;
-      border: 2px solid #ddd;
+      border: 1px solid rgba(255,255,255,0.15);
       border-radius: 6px;
-      font-size: 0.9em;
+      font-size: 0.88em;
       font-family: 'Courier New', monospace;
       transition: border-color .2s;
+      background: rgba(255,255,255,0.06);
+      color: white;
     }
+    .input-field::placeholder { color: rgba(255,255,255,0.3); }
     .input-field:focus { outline: none; border-color: #667eea; }
-    .input-field:disabled { background: #f5f5f5; color: #aaa; }
+    .input-field:disabled { opacity: 0.4; }
     .btn-send {
       padding: 9px 20px;
-      background: #667eea;
+      background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
       border: none;
       border-radius: 6px;
@@ -227,69 +259,69 @@
       cursor: pointer;
       transition: all .2s;
     }
-    .btn-send:hover:not(:disabled) { background: #5568d3; }
-    .btn-send:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-send:hover:not(:disabled) { opacity: 0.85; }
+    .btn-send:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb { background: #aaa; border-radius: 10px; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
 
-    @media (max-width: 1400px) {
-      .main-layout.has-vnc {
-        grid-template-columns: 340px 1fr;
+    @media (max-width: 1500px) {
+      .main-layout.has-foxglove {
+        grid-template-columns: 280px 1fr;
       }
-      .main-layout.has-vnc .simulation-section {
+      .main-layout.has-foxglove .viz-section {
         grid-column: span 2;
-        height: 500px;
+        height: 560px;
       }
     }
-
-    @media (max-width: 1100px) {
-      .main-layout { grid-template-columns: 1fr; }
-      .main-layout.has-vnc { grid-template-columns: 1fr; }
-      .main-layout.has-vnc .simulation-section { grid-column: span 1; }
-      .output-section, .simulation-section { height: 500px; }
+    @media (max-width: 900px) {
+      .main-layout, .main-layout.has-foxglove { grid-template-columns: 1fr; }
+      .main-layout.has-foxglove .viz-section { grid-column: span 1; height: 480px; }
+      .output-section, .cards-section { height: auto; }
+      .output-section { height: 500px; }
+      .viz-section { height: 480px; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>🤖 ROS Project Runner</h1>
+      <h1>🤖 ROS Simulation Dashboard</h1>
       <p>Select a project — only one runs at a time</p>
     </header>
 
-    <div class="main-layout">
+    <div class="main-layout" id="mainLayout">
       <!-- Left: project cards -->
       <div class="cards-section">
-        <h2>Available Projects</h2>
+        <h2>Projects</h2>
         <div class="cards-container">
 
           <div class="project-card ros_2" id="card-ros_2" data-project="ros_2">
             <h3>🔵 ROS 2</h3>
-            <p class="sub">Robot Proximity Communication System — navigate a graph via ROS2 services</p>
+            <p class="sub">Robot Proximity Communication — navigate a 5×4 graph via ROS 2 services</p>
             <span class="badge idle" id="badge-ros_2">Ready</span>
           </div>
 
           <div class="project-card ros_3" id="card-ros_3" data-project="ros_3">
             <h3>🔴 ROS 3</h3>
-            <p class="sub">3 Robots Simulation — pre-configured robots on defined paths with RViz2</p>
+            <p class="sub">Grid Simulation — 10×8 obstacle grid with BFS rerouting</p>
             <span class="badge idle" id="badge-ros_3">Ready</span>
           </div>
 
           <div class="project-card ros_4" id="card-ros_4" data-project="ros_4">
             <h3>🟢 ROS 4</h3>
-            <p class="sub">Quadcopter Multi-Agent — up to 10 autonomous quadcopters</p>
+            <p class="sub">Multi-Agent Quadcopter — dynamic obstacles with up to 10 agents</p>
             <span class="badge idle" id="badge-ros_4">Ready</span>
           </div>
 
         </div>
       </div>
 
-      <!-- Right: terminal output -->
+      <!-- Middle: terminal output -->
       <div class="output-section">
         <div class="output-header">
-          <h2>Output Terminal</h2>
+          <h2>📡 Output Terminal</h2>
           <div class="header-btns">
             <button class="btn btn-clear" id="clearBtn">Clear</button>
             <button class="btn btn-stop"  id="stopBtn" disabled>⏹ Stop</button>
@@ -309,16 +341,19 @@
         </div>
       </div>
 
-      <!-- Right: Live 3D Simulation (VNC Frame) -->
-      <div class="simulation-section">
-        <div class="simulation-header">
-          <h2>Live 3D Simulation (RViz2)</h2>
-          <div class="header-btns">
-            <button class="btn btn-clear" id="reconnectVncBtn">Reconnect</button>
-          </div>
+      <!-- Right: 3D Visualizer (Foxglove) -->
+      <div class="viz-section" id="vizSection">
+        <div class="viz-header">
+          <h2>🦊 Live 3D Visualizer</h2>
+          <span class="viz-status" id="vizStatus">Waiting for simulation…</span>
         </div>
-        <div class="vnc-container">
-          <iframe id="vncIframe" src="" style="width:100%; height:100%; border:none; background:#000;"></iframe>
+        <div class="viz-frame-wrap" id="vizFrameWrap">
+          <div class="viz-placeholder" id="vizPlaceholder">
+            <div class="icon">🤖</div>
+            <p>Start a simulation to see the<br>live 3D robot view here.</p>
+            <small>Powered by Foxglove Studio — WebGL 3D visualization</small>
+          </div>
+          <iframe id="vizFrame" src="" style="display:none; width:100%; height:100%; border:none;"></iframe>
         </div>
       </div>
     </div>
@@ -328,35 +363,74 @@
   <script>
     const socket = io();
 
-    let currentProject = null;   // which project is currently active in the UI
-    let processRunning = false;   // is a process actually running server-side
+    let currentProject = null;
+    let processRunning = false;
+    let foxgloveEnabled = false;
 
-    // Probe VNC endpoint to see if running in containerized environment
-    fetch('/vnc/vnc.html', { method: 'HEAD' })
-      .then(res => {
-        if (res.ok) {
-          document.querySelector('.main-layout').classList.add('has-vnc');
-          document.getElementById('vncIframe').src = '/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&quality=9';
+    // ── Detect server environment ─────────────────────────────────────────────
+    fetch('/api/env')
+      .then(r => r.json())
+      .then(env => {
+        foxgloveEnabled = env.foxgloveBridge;
+        if (foxgloveEnabled) {
+          document.getElementById('mainLayout').classList.add('has-foxglove');
         }
       })
-      .catch(() => {
-        console.log("VNC not available. Running in local mode; RViz will open as a native GUI window.");
-      });
+      .catch(() => console.log('Could not fetch /api/env'));
 
-    document.getElementById('reconnectVncBtn').addEventListener('click', () => {
-      const iframe = document.getElementById('vncIframe');
-      const currentSrc = iframe.src;
-      iframe.src = '';
+    // ── Build Foxglove embed URL ──────────────────────────────────────────────
+    function buildFoxgloveUrl() {
+      // Determine the WebSocket URL for foxglove_bridge
+      // On Hugging Face Spaces, traffic goes through wss on port 443, same host
+      // foxglove_bridge runs on ws://localhost:8765 but HF routes won't expose it directly.
+      // We use the public URL of the Space and pass it as the ws datasource.
+      // The space proxies ws connections through the same 7860 port via the path /foxglove-ws
+      const isHF = window.location.hostname.includes('hf.space');
+      let wsUrl;
+      if (isHF) {
+        // On HF Spaces: server.js proxies /foxglove-ws → ws://localhost:8765
+        wsUrl = `wss://${window.location.host}/foxglove-ws`;
+      } else {
+        wsUrl = `ws://${window.location.hostname}:8765`;
+      }
+      const encodedWs = encodeURIComponent(wsUrl);
+      return `https://embed.foxglove.dev/?ds=foxglove-websocket&ds.url=${encodedWs}`;
+    }
+
+    // ── Activate 3D visualizer when simulation starts ─────────────────────────
+    function activateViz() {
+      if (!foxgloveEnabled) return;
+      const frame = document.getElementById('vizFrame');
+      const placeholder = document.getElementById('vizPlaceholder');
+      const status = document.getElementById('vizStatus');
+
+      // Wait ~3s for foxglove_bridge to initialize, then load
       setTimeout(() => {
-        iframe.src = currentSrc || '/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&quality=9';
-      }, 100);
-    });
+        frame.src = buildFoxgloveUrl();
+        frame.style.display = 'block';
+        placeholder.style.display = 'none';
+        status.textContent = 'Live ●';
+        status.className = 'viz-status live';
+      }, 3000);
+    }
+
+    // ── Deactivate 3D visualizer ──────────────────────────────────────────────
+    function deactivateViz() {
+      if (!foxgloveEnabled) return;
+      const frame = document.getElementById('vizFrame');
+      const placeholder = document.getElementById('vizPlaceholder');
+      const status = document.getElementById('vizStatus');
+      frame.src = '';
+      frame.style.display = 'none';
+      placeholder.style.display = 'flex';
+      status.textContent = 'Waiting for simulation…';
+      status.className = 'viz-status';
+    }
 
     const ALL_PROJECTS = ['ros_2', 'ros_3', 'ros_4'];
-
     const LABELS = {
-      ros_2: 'ROS 2 – Robot Proximity Communication',
-      ros_3: 'ROS 3 – 3 Robots Simulation',
+      ros_2: 'ROS 2 – Robot Proximity',
+      ros_3: 'ROS 3 – Grid Simulation',
       ros_4: 'ROS 4 – Quadcopter Multi-Agent'
     };
 
@@ -364,7 +438,7 @@
     document.querySelectorAll('.project-card').forEach(card => {
       card.addEventListener('click', () => {
         const pid = card.getAttribute('data-project');
-        if (pid === currentProject && processRunning) return; // already running
+        if (pid === currentProject && processRunning) return;
         startProject(pid);
       });
     });
@@ -373,11 +447,9 @@
     document.getElementById('stopBtn').addEventListener('click', () => {
       if (currentProject) socket.emit('stop-process', currentProject);
     });
-
     document.getElementById('clearBtn').addEventListener('click', () => {
       document.getElementById('outputTerminal').innerHTML = '';
     });
-
     document.getElementById('sendBtn').addEventListener('click', sendInput);
     document.getElementById('inputField').addEventListener('keypress', e => {
       if (e.key === 'Enter') sendInput();
@@ -392,6 +464,7 @@
       setCardStates(projectId, 'running');
       setControls(true);
       showBanner(projectId);
+      activateViz();
     });
 
     socket.on('process-stopped', ({ projectId }) => {
@@ -400,6 +473,7 @@
       setAllCardsNormal();
       setControls(false);
       hideBanner();
+      deactivateViz();
       appendLine({ type: 'info', message: `⏹ ${LABELS[projectId] || projectId} stopped.` });
     });
 
@@ -408,12 +482,12 @@
       setAllCardsNormal();
       setControls(false);
       hideBanner();
+      deactivateViz();
     });
 
     // ── Actions ───────────────────────────────────────────────────────────────
     function startProject(projectId) {
       currentProject = projectId;
-      // Immediately dim others and show building state
       setCardStates(projectId, 'building');
       setBadge(projectId, 'building', '⏳ Building…');
       setControls(false);
@@ -462,7 +536,6 @@
         : text;
     }
 
-    // Dim all cards except the active one; active card gets visual highlight
     function setCardStates(activeId, state) {
       ALL_PROJECTS.forEach(pid => {
         const card = document.getElementById(`card-${pid}`);
