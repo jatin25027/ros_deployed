@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.log
+npm-debug.log*
+
+# ROS workspaces artifacts
+*/build/
+*/install/
+*/log/
+
+# Temp launch files
+*temp_interactive.launch.py

@@ -1,0 +1,84 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Enabled: false
+      Name: Grid
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Graph Markers
+      Topic:
+        Value: /graph_markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 1
+      Topic:
+        Value: /robot1/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 2
+      Topic:
+        Value: /robot2/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 3
+      Topic:
+        Value: /robot3/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 4
+      Topic:
+        Value: /robot4/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 5
+      Topic:
+        Value: /robot5/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 6
+      Topic:
+        Value: /robot6/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 7
+      Topic:
+        Value: /robot7/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 8
+      Topic:
+        Value: /robot8/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 9
+      Topic:
+        Value: /robot9/markers
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot 10
+      Topic:
+        Value: /robot10/markers
+  Global Options:
+    Fixed Frame: map
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 130
+      Focal Point:
+        X: 9
+        Y: 6
+        Z: 0
+      Pitch: 1.0
+      Yaw: 0.0
+Window Geometry:
+  Height: 950
+  Width: 1500

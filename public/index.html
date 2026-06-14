@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROS Project Runner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    header { text-align: center; color: white; margin-bottom: 30px; }
+    header h1 { font-size: 2.5em; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+    header p { font-size: 1.1em; opacity: 0.9; }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+      max-width: 100%;
+    }
+
+    .main-layout.has-vnc {
+      grid-template-columns: 340px 1fr 1.6fr;
+    }
+
+    /* Simulation section styles */
+    .simulation-section {
+      display: none;
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      flex-direction: column;
+      height: 620px;
+    }
+    
+    .main-layout.has-vnc .simulation-section {
+      display: flex;
+    }
+
+    .simulation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .simulation-header h2 { color: #333; font-size: 1.2em; }
+
+    .vnc-container {
+      flex: 1;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #2d2d44;
+    }
+
+    /* ── Cards ── */
+    .cards-section {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      align-self: start;
+    }
+    .cards-section h2 { margin-bottom: 18px; color: #333; font-size: 1.1em; letter-spacing: .5px; }
+
+    .cards-container { display: flex; flex-direction: column; gap: 14px; }
+
+    .project-card {
+      padding: 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border: 2px solid #e0e0e0;
+      position: relative;
+      overflow: hidden;
+      background: white;
+    }
+    .project-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+
+    /* Colour variants */
+    .project-card.ros_2 { border-left: 5px solid #3498db; }
+    .project-card.ros_2:hover { border-color: #3498db; box-shadow: 0 8px 20px rgba(52,152,219,.25); }
+    .project-card.ros_3 { border-left: 5px solid #e74c3c; }
+    .project-card.ros_3:hover { border-color: #e74c3c; box-shadow: 0 8px 20px rgba(231,76,60,.25); }
+    .project-card.ros_4 { border-left: 5px solid #2ecc71; }
+    .project-card.ros_4:hover { border-color: #2ecc71; box-shadow: 0 8px 20px rgba(46,204,113,.25); }
+
+    /* Active / disabled states */
+    .project-card.is-active { opacity: 1 !important; }
+    .project-card.is-disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .project-card h3 { margin-bottom: 5px; color: #333; font-size: 1.1em; }
+    .project-card .sub { color: #888; font-size: 0.78em; margin-bottom: 10px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+    .badge.idle  { background: #eee; color: #666; }
+    .badge.building { background: #fff3cd; color: #856404; }
+    .badge.running  { background: #d4edda; color: #155724; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid #ccc;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    /* ── Output panel ── */
+    .output-section {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      height: 620px;
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .output-header h2 { color: #333; font-size: 1.2em; }
+
+    .header-btns { display: flex; gap: 8px; }
+
+    .btn {
+      padding: 7px 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88em;
+      font-weight: 600;
+      transition: all .2s;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-clear { background: #95a5a6; color: white; }
+    .btn-clear:hover:not(:disabled) { background: #7f8c8d; }
+    .btn-stop  { background: #e74c3c; color: white; }
+    .btn-stop:hover:not(:disabled)  { background: #c0392b; }
+
+    /* Active project banner */
+    .active-banner {
+      display: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 0.88em;
+      font-weight: 600;
+      border-left: 4px solid;
+    }
+    .active-banner.ros_2 { background: #ebf5fb; border-color: #3498db; color: #1a5276; }
+    .active-banner.ros_3 { background: #fdedec; border-color: #e74c3c; color: #7b241c; }
+    .active-banner.ros_4 { background: #eafaf1; border-color: #2ecc71; color: #1e8449; }
+
+    /* Terminal */
+    .output-terminal {
+      flex: 1;
+      background: #1a1a2e;
+      border-radius: 8px;
+      padding: 14px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.88em;
+      color: #e0e0e0;
+      margin-bottom: 12px;
+      border: 1px solid #2d2d44;
+    }
+    .output-line { margin: 2px 0; word-wrap: break-word; white-space: pre-wrap; line-height: 1.5; }
+    .line-building  { color: #ffb347; }
+    .line-info      { color: #87ceeb; }
+    .line-stdout    { color: #e0e0e0; }
+    .line-stderr    { color: #ff6b6b; }
+    .line-success   { color: #90ee90; }
+    .line-error     { color: #ff4444; font-weight: bold; }
+    .line-user-input{ color: #ffd700; }
+
+    /* Input row */
+    .input-row { display: flex; gap: 10px; }
+    .input-field {
+      flex: 1;
+      padding: 9px 12px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.9em;
+      font-family: 'Courier New', monospace;
+      transition: border-color .2s;
+    }
+    .input-field:focus { outline: none; border-color: #667eea; }
+    .input-field:disabled { background: #f5f5f5; color: #aaa; }
+    .btn-send {
+      padding: 9px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-send:hover:not(:disabled) { background: #5568d3; }
+    .btn-send:disabled { background: #ccc; cursor: not-allowed; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: #aaa; border-radius: 10px; }
+
+    @media (max-width: 1400px) {
+      .main-layout.has-vnc {
+        grid-template-columns: 340px 1fr;
+      }
+      .main-layout.has-vnc .simulation-section {
+        grid-column: span 2;
+        height: 500px;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .main-layout { grid-template-columns: 1fr; }
+      .main-layout.has-vnc { grid-template-columns: 1fr; }
+      .main-layout.has-vnc .simulation-section { grid-column: span 1; }
+      .output-section, .simulation-section { height: 500px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🤖 ROS Project Runner</h1>
+      <p>Select a project — only one runs at a time</p>
+    </header>
+
+    <div class="main-layout">
+      <!-- Left: project cards -->
+      <div class="cards-section">
+        <h2>Available Projects</h2>
+        <div class="cards-container">
+
+          <div class="project-card ros_2" id="card-ros_2" data-project="ros_2">
+            <h3>🔵 ROS 2</h3>
+            <p class="sub">Robot Proximity Communication System — navigate a graph via ROS2 services</p>
+            <span class="badge idle" id="badge-ros_2">Ready</span>
+          </div>
+
+          <div class="project-card ros_3" id="card-ros_3" data-project="ros_3">
+            <h3>🔴 ROS 3</h3>
+            <p class="sub">3 Robots Simulation — pre-configured robots on defined paths with RViz2</p>
+            <span class="badge idle" id="badge-ros_3">Ready</span>
+          </div>
+
+          <div class="project-card ros_4" id="card-ros_4" data-project="ros_4">
+            <h3>🟢 ROS 4</h3>
+            <p class="sub">Quadcopter Multi-Agent — up to 10 autonomous quadcopters</p>
+            <span class="badge idle" id="badge-ros_4">Ready</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right: terminal output -->
+      <div class="output-section">
+        <div class="output-header">
+          <h2>Output Terminal</h2>
+          <div class="header-btns">
+            <button class="btn btn-clear" id="clearBtn">Clear</button>
+            <button class="btn btn-stop"  id="stopBtn" disabled>⏹ Stop</button>
+          </div>
+        </div>
+
+        <div class="active-banner" id="activeBanner"></div>
+
+        <div class="output-terminal" id="outputTerminal">
+          <div class="output-line line-info">Click a project card to build and run it.</div>
+        </div>
+
+        <div class="input-row">
+          <input type="text" class="input-field" id="inputField"
+                 placeholder="Type input and press Enter…" disabled>
+          <button class="btn btn-send" id="sendBtn" disabled>Send</button>
+        </div>
+      </div>
+
+      <!-- Right: Live 3D Simulation (VNC Frame) -->
+      <div class="simulation-section">
+        <div class="simulation-header">
+          <h2>Live 3D Simulation (RViz2)</h2>
+          <div class="header-btns">
+            <button class="btn btn-clear" id="reconnectVncBtn">Reconnect</button>
+          </div>
+        </div>
+        <div class="vnc-container">
+          <iframe id="vncIframe" src="" style="width:100%; height:100%; border:none; background:#000;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+
+    let currentProject = null;   // which project is currently active in the UI
+    let processRunning = false;   // is a process actually running server-side
+
+    // Probe VNC endpoint to see if running in containerized environment
+    fetch('/vnc/vnc.html', { method: 'HEAD' })
+      .then(res => {
+        if (res.ok) {
+          document.querySelector('.main-layout').classList.add('has-vnc');
+          document.getElementById('vncIframe').src = '/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&quality=9';
+        }
+      })
+      .catch(() => {
+        console.log("VNC not available. Running in local mode; RViz will open as a native GUI window.");
+      });
+
+    document.getElementById('reconnectVncBtn').addEventListener('click', () => {
+      const iframe = document.getElementById('vncIframe');
+      const currentSrc = iframe.src;
+      iframe.src = '';
+      setTimeout(() => {
+        iframe.src = currentSrc || '/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&quality=9';
+      }, 100);
+    });
+
+    const ALL_PROJECTS = ['ros_2', 'ros_3', 'ros_4'];
+
+    const LABELS = {
+      ros_2: 'ROS 2 – Robot Proximity Communication',
+      ros_3: 'ROS 3 – 3 Robots Simulation',
+      ros_4: 'ROS 4 – Quadcopter Multi-Agent'
+    };
+
+    // ── Card clicks ───────────────────────────────────────────────────────────
+    document.querySelectorAll('.project-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const pid = card.getAttribute('data-project');
+        if (pid === currentProject && processRunning) return; // already running
+        startProject(pid);
+      });
+    });
+
+    // ── Buttons ───────────────────────────────────────────────────────────────
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      if (currentProject) socket.emit('stop-process', currentProject);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('outputTerminal').innerHTML = '';
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', sendInput);
+    document.getElementById('inputField').addEventListener('keypress', e => {
+      if (e.key === 'Enter') sendInput();
+    });
+
+    // ── Socket events ─────────────────────────────────────────────────────────
+    socket.on('output', data => appendLine(data));
+
+    socket.on('project-started', ({ projectId }) => {
+      currentProject = projectId;
+      processRunning = true;
+      setCardStates(projectId, 'running');
+      setControls(true);
+      showBanner(projectId);
+    });
+
+    socket.on('process-stopped', ({ projectId }) => {
+      processRunning = false;
+      setBadge(projectId, 'idle', 'Ready');
+      setAllCardsNormal();
+      setControls(false);
+      hideBanner();
+      appendLine({ type: 'info', message: `⏹ ${LABELS[projectId] || projectId} stopped.` });
+    });
+
+    socket.on('disconnect', () => {
+      processRunning = false;
+      setAllCardsNormal();
+      setControls(false);
+      hideBanner();
+    });
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+    function startProject(projectId) {
+      currentProject = projectId;
+      // Immediately dim others and show building state
+      setCardStates(projectId, 'building');
+      setBadge(projectId, 'building', '⏳ Building…');
+      setControls(false);
+      clearTerminal();
+      appendLine({ type: 'info', message: `▶ Requesting ${LABELS[projectId]}…` });
+      socket.emit('build-and-run', projectId);
+    }
+
+    function sendInput() {
+      const field = document.getElementById('inputField');
+      const val = field.value.trim();
+      if (val && currentProject && processRunning) {
+        socket.emit('send-input', { projectId: currentProject, input: val });
+        field.value = '';
+      }
+    }
+
+    // ── UI helpers ────────────────────────────────────────────────────────────
+    function appendLine({ type, message }) {
+      const terminal = document.getElementById('outputTerminal');
+      const el = document.createElement('div');
+      el.className = `output-line line-${type}`;
+      el.textContent = message;
+      terminal.appendChild(el);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function clearTerminal() {
+      document.getElementById('outputTerminal').innerHTML = '';
+    }
+
+    function setControls(running) {
+      document.getElementById('inputField').disabled = !running;
+      document.getElementById('sendBtn').disabled    = !running;
+      document.getElementById('stopBtn').disabled    = !running;
+    }
+
+    function setBadge(projectId, cls, text) {
+      const b = document.getElementById(`badge-${projectId}`);
+      if (!b) return;
+      b.className = `badge ${cls}`;
+      b.innerHTML = cls === 'running'
+        ? `<span class="spinner"></span> Running`
+        : cls === 'building'
+        ? `<span class="spinner"></span> ${text}`
+        : text;
+    }
+
+    // Dim all cards except the active one; active card gets visual highlight
+    function setCardStates(activeId, state) {
+      ALL_PROJECTS.forEach(pid => {
+        const card = document.getElementById(`card-${pid}`);
+        if (!card) return;
+        if (pid === activeId) {
+          card.classList.remove('is-disabled');
+          card.classList.add('is-active');
+          if (state === 'running') setBadge(pid, 'running', 'Running');
+          else if (state === 'building') setBadge(pid, 'building', 'Building…');
+        } else {
+          card.classList.remove('is-active');
+          card.classList.add('is-disabled');
+          setBadge(pid, 'idle', 'Ready');
+        }
+      });
+    }
+
+    function setAllCardsNormal() {
+      ALL_PROJECTS.forEach(pid => {
+        const card = document.getElementById(`card-${pid}`);
+        if (!card) return;
+        card.classList.remove('is-disabled', 'is-active');
+        setBadge(pid, 'idle', 'Ready');
+      });
+    }
+
+    function showBanner(projectId) {
+      const b = document.getElementById('activeBanner');
+      b.className = `active-banner ${projectId}`;
+      b.textContent = `▶ Running: ${LABELS[projectId]}`;
+      b.style.display = 'block';
+    }
+
+    function hideBanner() {
+      document.getElementById('activeBanner').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
