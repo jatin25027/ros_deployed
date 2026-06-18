@@ -1,12 +1,11 @@
 const express = require('express');
 const http = require('http');
+const net = require('net');
 const socketIO = require('socket.io');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const os = require('os');
-
 const fs = require('fs');
-const WebSocket = require('ws');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,42 +13,46 @@ const io = socketIO(server, {
   cors: { origin: '*' }
 });
 
-// ── WebSocket proxy: /foxglove-ws → foxglove_bridge on :8765 ─────────────────
-// Hugging Face only exposes port 7860, so we proxy foxglove traffic through here
-const FOXGLOVE_PORT = 8765;
+// ── WebSocket proxy: /websockify → websockify on :6080 via raw TCP pipe ──────
+// We forward the raw HTTP Upgrade + head bytes to websockify, then pipe both
+// directions so websockify handles the WS handshake itself (no re-framing bugs).
+const WEBSOCKIFY_PORT = 6080;
 server.on('upgrade', (req, socket, head) => {
-  if (req.url === '/foxglove-ws') {
-    const target = new WebSocket(`ws://127.0.0.1:${FOXGLOVE_PORT}`, {
-      headers: req.headers
+  if (req.url.startsWith('/websockify')) {
+    const target = net.createConnection(WEBSOCKIFY_PORT, '127.0.0.1');
+
+    target.on('connect', () => {
+      // Forward the original HTTP Upgrade request to websockify
+      let rawRequest = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
+      for (const [k, v] of Object.entries(req.headers)) {
+        rawRequest += `${k}: ${v}\r\n`;
+      }
+      rawRequest += `\r\n`;
+      target.write(rawRequest);
+      if (head && head.length > 0) target.write(head);
+
+      // Pipe raw bytes both ways
+      socket.pipe(target);
+      target.pipe(socket);
     });
-    target.on('open', () => {
-      // Duplex pipe between browser and foxglove_bridge
-      socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n');
-    });
-    target.on('message', (data, isBinary) => {
-      socket.write(data);
-    });
-    target.on('error', () => socket.destroy());
-    target.on('close', () => socket.destroy());
-    socket.on('data', data => {
-      if (target.readyState === WebSocket.OPEN) target.send(data);
-    });
-    socket.on('error', () => target.terminate());
-    socket.on('end', () => target.terminate());
+
+    target.on('error', (e) => { console.error('[PROXY] target error:', e.message); socket.destroy(); });
+    socket.on('error', () => target.destroy());
+    socket.on('close', () => target.destroy());
   }
 });
 
 app.use(express.static('public'));
+// noVNC location varies by distro — try multiple paths
+const NOVNC_DIRS = ['/usr/share/novnc', '/usr/share/novnc/core', '/usr/local/share/novnc'];
+const novncDir = NOVNC_DIRS.find(d => fs.existsSync(d)) || '/usr/share/novnc';
+app.use('/novnc', express.static(novncDir));
 app.use(express.json());
 
 // ── API: expose environment config to frontend ────────────────────────────────
 app.get('/api/env', (req, res) => {
-  const foxglove = process.env.FOXGLOVE_BRIDGE === 'true';
-  // On HF Spaces, the public URL is the space host with /foxglove path proxied
-  // We use port 8765 for foxglove bridge websocket
   res.json({
-    foxgloveBridge: foxglove,
-    foxglovePort: 8765
+    rvizVnc: true
   });
 });
 
@@ -95,17 +98,7 @@ function killActiveProcess(notifySocket, reason) {
   }
 
   // Also nuke any lingering ros2 daemon / nodes
-  try {
-    execSync('pkill -9 -f "ros2 run" 2>/dev/null || true');
-    execSync('pkill -9 -f "ros2 launch" 2>/dev/null || true');
-    execSync('pkill -9 -f "robot_node" 2>/dev/null || true');
-    execSync('pkill -9 -f "proximity_monitor" 2>/dev/null || true');
-    execSync('pkill -9 -f "graph_visualizer" 2>/dev/null || true');
-    execSync('pkill -9 -f "interactive_runner" 2>/dev/null || true');
-    execSync('pkill -9 -f "rviz2" 2>/dev/null || true');
-    execSync('pkill -9 -f "foxglove_bridge" 2>/dev/null || true');
-    execSync('source /opt/ros/humble/setup.bash && ros2 daemon stop 2>/dev/null || true', { shell: '/bin/bash' });
-  } catch (_) {}
+  cleanupLingeringProcesses();
 
   activeProcess = null;
 
@@ -119,8 +112,30 @@ function killActiveProcess(notifySocket, reason) {
   }
 }
 
+// ── Robust cleanup helper ─────────────────────────────────────────────────────
+function cleanupLingeringProcesses() {
+  const commands = [
+    'pkill -9 -f "ros2 run" 2>/dev/null || true',
+    'pkill -9 -f "ros2 launch" 2>/dev/null || true',
+    'pkill -9 -f "robot_node" 2>/dev/null || true',
+    'pkill -9 -f "proximity_monitor" 2>/dev/null || true',
+    'pkill -9 -f "graph_visualizer" 2>/dev/null || true',
+    'pkill -9 -f "interactive_runner" 2>/dev/null || true',
+    'pkill -9 -f "rviz2" 2>/dev/null || true',
+    'pkill -9 -f "foxglove_bridge" 2>/dev/null || true',
+    'source /opt/ros/humble/setup.bash && ros2 daemon stop 2>/dev/null || true'
+  ];
+  for (const cmd of commands) {
+    try {
+      execSync(cmd, { shell: '/bin/bash', stdio: 'ignore' });
+    } catch (_) {}
+  }
+}
+
 // ── ROS environment for child processes ───────────────────────────────────────
-function rosEnv() {
+function rosEnv(projectId) {
+  // Use unique ROS_DOMAIN_ID for each project to isolate network traffic
+  const domainId = projectId === 'ros_2' ? '2' : (projectId === 'ros_3' ? '3' : '4');
   return {
     ...process.env,
     PYTHONUNBUFFERED: '1',
@@ -129,27 +144,17 @@ function rosEnv() {
     AMENT_PREFIX_PATH: '/opt/ros/humble',
     ROS_DISTRO: 'humble',
     COLCON_HOME: `${HOME}/.colcon`,
-    PYTHONPATH: ''
+    PYTHONPATH: '',
+    DISPLAY: ':99',
+    ROS_DOMAIN_ID: domainId
   };
 }
 
 // ── Socket connections ─────────────────────────────────────────────────────────
 // ── Global cleanup on server startup ───────────────────────────────────────────
 console.log('[SYSTEM] Performing initial cleanup of lingering ROS processes...');
-try {
-  execSync('pkill -9 -f "ros2 run" 2>/dev/null || true');
-  execSync('pkill -9 -f "ros2 launch" 2>/dev/null || true');
-  execSync('pkill -9 -f "robot_node" 2>/dev/null || true');
-  execSync('pkill -9 -f "proximity_monitor" 2>/dev/null || true');
-  execSync('pkill -9 -f "graph_visualizer" 2>/dev/null || true');
-  execSync('pkill -9 -f "interactive_runner" 2>/dev/null || true');
-  execSync('pkill -9 -f "rviz2" 2>/dev/null || true');
-  execSync('pkill -9 -f "foxglove_bridge" 2>/dev/null || true');
-  execSync('source /opt/ros/humble/setup.bash && ros2 daemon stop 2>/dev/null || true', { shell: '/bin/bash' });
-  console.log('[SYSTEM] Cleanup complete.');
-} catch (e) {
-  console.warn('[SYSTEM] Cleanup encountered an error:', e.message);
-}
+cleanupLingeringProcesses();
+console.log('[SYSTEM] Cleanup complete.');
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -200,7 +205,8 @@ io.on('connection', (socket) => {
   // ── Cleanup on disconnect ─────────────────────────────────────────────────
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
-    killActiveProcess(null, 'client disconnected');
+    // Do not kill the active process on disconnect so that page reloads or multiple tabs
+    // don't abort the running simulation.
   });
 });
 
@@ -226,7 +232,7 @@ exec ros2 run robot_proximity interactive_runner
     cwd: config.path,
     stdio: ['pipe', 'pipe', 'pipe'],
     detached: true,   // <-- creates a new process group so we can kill -pgid
-    env: rosEnv()
+    env: rosEnv(projectId)
   });
 
   // Store pgid = child.pid (because detached=true makes child the group leader)

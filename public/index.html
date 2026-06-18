@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ROS Simulation Dashboard</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -14,37 +19,56 @@
       padding: 20px;
     }
 
-    .container { max-width: 1800px; margin: 0 auto; }
+    .container {
+      width: 98%;
+      max-width: none;
+      margin: 0 auto;
+    }
 
-    header { text-align: center; color: white; margin-bottom: 24px; }
-    header h1 { font-size: 2.4em; margin-bottom: 6px; text-shadow: 0 0 30px rgba(102,126,234,0.8); letter-spacing: 1px; }
-    header p { font-size: 1em; opacity: 0.7; }
+    header {
+      text-align: center;
+      color: white;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 2.4em;
+      margin-bottom: 6px;
+      text-shadow: 0 0 30px rgba(102, 126, 234, 0.8);
+      letter-spacing: 1px;
+    }
+
+    header p {
+      font-size: 1em;
+      opacity: 0.7;
+    }
 
     .main-layout {
       display: grid;
-      grid-template-columns: 300px 1fr;
+      grid-template-columns: 1fr;
       gap: 18px;
     }
 
-    /* When foxglove is active, add 3rd column */
-    .main-layout.has-foxglove {
-      grid-template-columns: 280px 1fr 1.8fr;
+    /* When rviz is active, terminal takes 1 fraction, rviz takes 3 fractions */
+    .main-layout.has-rviz {
+      grid-template-columns: 1fr 3fr;
     }
 
     /* ── 3D Visualizer Panel ── */
     .viz-section {
       display: none;
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
       padding: 18px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
       flex-direction: column;
-      height: 680px;
+      min-height: 700px;
+      height: calc(100vh - 220px);
     }
 
-    .main-layout.has-foxglove .viz-section {
+    .main-layout.has-rviz .viz-section {
       display: flex;
     }
 
@@ -54,26 +78,34 @@
       align-items: center;
       margin-bottom: 12px;
       padding-bottom: 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .viz-header h2 { color: #c3cbff; font-size: 1.1em; }
+
+    .viz-header h2 {
+      color: #c3cbff;
+      font-size: 1.1em;
+    }
 
     .viz-status {
       font-size: 0.75em;
       padding: 3px 10px;
       border-radius: 20px;
       font-weight: 600;
-      background: rgba(255,255,255,0.07);
+      background: rgba(255, 255, 255, 0.07);
       color: #aaa;
     }
-    .viz-status.live { background: rgba(46,204,113,0.2); color: #2ecc71; }
+
+    .viz-status.live {
+      background: rgba(46, 204, 113, 0.2);
+      color: #2ecc71;
+    }
 
     .viz-frame-wrap {
       flex: 1;
       background: #0a0a12;
       border-radius: 10px;
       overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       position: relative;
     }
 
@@ -89,15 +121,25 @@
       align-items: center;
       justify-content: center;
       height: 100%;
-      color: rgba(255,255,255,0.3);
+      color: rgba(255, 255, 255, 0.3);
       gap: 12px;
       text-align: center;
       padding: 20px;
     }
 
-    .viz-placeholder .icon { font-size: 3.5em; }
-    .viz-placeholder p { font-size: 0.9em; line-height: 1.6; }
-    .viz-placeholder small { font-size: 0.78em; opacity: 0.6; }
+    .viz-placeholder .icon {
+      font-size: 3.5em;
+    }
+
+    .viz-placeholder p {
+      font-size: 0.9em;
+      line-height: 1.6;
+    }
+
+    .viz-placeholder small {
+      font-size: 0.78em;
+      opacity: 0.6;
+    }
 
     /* ── Cards ── */
     .cards-section {
@@ -107,32 +149,62 @@
       border-radius: 16px;
       padding: 22px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-      align-self: start;
+      grid-column: 1 / -1;
     }
     .cards-section h2 { margin-bottom: 16px; color: #c3cbff; font-size: 1em; letter-spacing: .5px; text-transform: uppercase; }
 
-    .cards-container { display: flex; flex-direction: column; gap: 12px; }
+    .cards-container { display: flex; flex-direction: row; gap: 12px; }
 
     .project-card {
+      flex: 1;
       padding: 16px;
       border-radius: 10px;
       cursor: pointer;
       transition: all 0.25s ease;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
       color: white;
     }
-    .project-card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.09); }
 
-    .project-card.ros_2 { border-left: 4px solid #3498db; }
-    .project-card.ros_3 { border-left: 4px solid #e74c3c; }
-    .project-card.ros_4 { border-left: 4px solid #2ecc71; }
+    .project-card:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.09);
+    }
 
-    .project-card.is-active { opacity: 1 !important; background: rgba(255,255,255,0.1); }
-    .project-card.is-disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+    .project-card.ros_2 {
+      border-left: 4px solid #3498db;
+    }
 
-    .project-card h3 { margin-bottom: 4px; font-size: 1em; }
-    .project-card .sub { color: rgba(255,255,255,0.5); font-size: 0.75em; margin-bottom: 10px; line-height: 1.4; }
+    .project-card.ros_3 {
+      border-left: 4px solid #e74c3c;
+    }
+
+    .project-card.ros_4 {
+      border-left: 4px solid #2ecc71;
+    }
+
+    .project-card.is-active {
+      opacity: 1 !important;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .project-card.is-disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .project-card h3 {
+      margin-bottom: 4px;
+      font-size: 1em;
+    }
+
+    .project-card .sub {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.75em;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
 
     .badge {
       display: inline-flex;
@@ -143,15 +215,33 @@
       font-size: 0.76em;
       font-weight: 600;
     }
-    .badge.idle  { background: rgba(255,255,255,0.08); color: #aaa; }
-    .badge.building { background: rgba(255,165,0,0.2); color: #ffb347; }
-    .badge.running  { background: rgba(46,204,113,0.2); color: #2ecc71; }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .badge.idle {
+      background: rgba(255, 255, 255, 0.08);
+      color: #aaa;
+    }
+
+    .badge.building {
+      background: rgba(255, 165, 0, 0.2);
+      color: #ffb347;
+    }
+
+    .badge.running {
+      background: rgba(46, 204, 113, 0.2);
+      color: #2ecc71;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .spinner {
       display: inline-block;
-      width: 9px; height: 9px;
-      border: 2px solid rgba(255,255,255,0.3);
+      width: 9px;
+      height: 9px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
       border-top-color: currentColor;
       border-radius: 50%;
       animation: spin .8s linear infinite;
@@ -159,15 +249,16 @@
 
     /* ── Output panel ── */
     .output-section {
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
       display: flex;
       flex-direction: column;
-      height: 680px;
+      min-height: 700px;
+      height: calc(100vh - 220px);
     }
 
     .output-header {
@@ -176,11 +267,18 @@
       align-items: center;
       margin-bottom: 12px;
       padding-bottom: 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .output-header h2 { color: #c3cbff; font-size: 1.1em; }
 
-    .header-btns { display: flex; gap: 8px; }
+    .output-header h2 {
+      color: #c3cbff;
+      font-size: 1.1em;
+    }
+
+    .header-btns {
+      display: flex;
+      gap: 8px;
+    }
 
     .btn {
       padding: 6px 14px;
@@ -191,11 +289,29 @@
       font-weight: 600;
       transition: all .2s;
     }
-    .btn:disabled { opacity: .35; cursor: not-allowed; }
-    .btn-clear { background: rgba(255,255,255,0.1); color: #ccc; }
-    .btn-clear:hover:not(:disabled) { background: rgba(255,255,255,0.18); }
-    .btn-stop  { background: rgba(231,76,60,0.7); color: white; }
-    .btn-stop:hover:not(:disabled)  { background: #c0392b; }
+
+    .btn:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    .btn-clear {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ccc;
+    }
+
+    .btn-clear:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .btn-stop {
+      background: rgba(231, 76, 60, 0.7);
+      color: white;
+    }
+
+    .btn-stop:hover:not(:disabled) {
+      background: #c0392b;
+    }
 
     /* Active project banner */
     .active-banner {
@@ -207,9 +323,24 @@
       font-weight: 600;
       border-left: 4px solid;
     }
-    .active-banner.ros_2 { background: rgba(52,152,219,0.15); border-color: #3498db; color: #87ceeb; }
-    .active-banner.ros_3 { background: rgba(231,76,60,0.15); border-color: #e74c3c; color: #ff8c8c; }
-    .active-banner.ros_4 { background: rgba(46,204,113,0.15); border-color: #2ecc71; color: #90ee90; }
+
+    .active-banner.ros_2 {
+      background: rgba(52, 152, 219, 0.15);
+      border-color: #3498db;
+      color: #87ceeb;
+    }
+
+    .active-banner.ros_3 {
+      background: rgba(231, 76, 60, 0.15);
+      border-color: #e74c3c;
+      color: #ff8c8c;
+    }
+
+    .active-banner.ros_4 {
+      background: rgba(46, 204, 113, 0.15);
+      border-color: #2ecc71;
+      color: #90ee90;
+    }
 
     /* Terminal */
     .output-terminal {
@@ -222,33 +353,76 @@
       font-size: 0.84em;
       color: #e0e0e0;
       margin-bottom: 12px;
-      border: 1px solid rgba(255,255,255,0.07);
+      border: 1px solid rgba(255, 255, 255, 0.07);
     }
-    .output-line { margin: 2px 0; word-wrap: break-word; white-space: pre-wrap; line-height: 1.5; }
-    .line-building  { color: #ffb347; }
-    .line-info      { color: #87ceeb; }
-    .line-stdout    { color: #e0e0e0; }
-    .line-stderr    { color: #ff6b6b; }
-    .line-success   { color: #90ee90; }
-    .line-error     { color: #ff4444; font-weight: bold; }
-    .line-user-input{ color: #ffd700; }
+
+    .output-line {
+      margin: 2px 0;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    .line-building {
+      color: #ffb347;
+    }
+
+    .line-info {
+      color: #87ceeb;
+    }
+
+    .line-stdout {
+      color: #e0e0e0;
+    }
+
+    .line-stderr {
+      color: #ff6b6b;
+    }
+
+    .line-success {
+      color: #90ee90;
+    }
+
+    .line-error {
+      color: #ff4444;
+      font-weight: bold;
+    }
+
+    .line-user-input {
+      color: #ffd700;
+    }
 
     /* Input row */
-    .input-row { display: flex; gap: 10px; }
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
     .input-field {
       flex: 1;
       padding: 9px 12px;
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 6px;
       font-size: 0.88em;
       font-family: 'Courier New', monospace;
       transition: border-color .2s;
-      background: rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.06);
       color: white;
     }
-    .input-field::placeholder { color: rgba(255,255,255,0.3); }
-    .input-field:focus { outline: none; border-color: #667eea; }
-    .input-field:disabled { opacity: 0.4; }
+
+    .input-field::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .input-field:disabled {
+      opacity: 0.4;
+    }
+
     .btn-send {
       padding: 9px 20px;
       background: linear-gradient(135deg, #667eea, #764ba2);
@@ -259,31 +433,59 @@
       cursor: pointer;
       transition: all .2s;
     }
-    .btn-send:hover:not(:disabled) { opacity: 0.85; }
-    .btn-send:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
-
-    @media (max-width: 1500px) {
-      .main-layout.has-foxglove {
-        grid-template-columns: 280px 1fr;
-      }
-      .main-layout.has-foxglove .viz-section {
-        grid-column: span 2;
-        height: 560px;
-      }
+    .btn-send:hover:not(:disabled) {
+      opacity: 0.85;
     }
+
+    .btn-send:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+    }
+
+
+
     @media (max-width: 900px) {
-      .main-layout, .main-layout.has-foxglove { grid-template-columns: 1fr; }
-      .main-layout.has-foxglove .viz-section { grid-column: span 1; height: 480px; }
-      .output-section, .cards-section { height: auto; }
-      .output-section { height: 500px; }
-      .viz-section { height: 480px; }
+
+      .main-layout,
+      .main-layout.has-rviz {
+        grid-template-columns: 1fr;
+      }
+
+      .main-layout.has-rviz .viz-section {
+        grid-column: span 1;
+        height: 480px;
+      }
+
+      .output-section,
+      .cards-section {
+        height: auto;
+      }
+
+      .output-section {
+        height: 500px;
+      }
+
+      .viz-section {
+        height: 480px;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -324,7 +526,7 @@
           <h2>📡 Output Terminal</h2>
           <div class="header-btns">
             <button class="btn btn-clear" id="clearBtn">Clear</button>
-            <button class="btn btn-stop"  id="stopBtn" disabled>⏹ Stop</button>
+            <button class="btn btn-stop" id="stopBtn" disabled>⏹ Stop</button>
           </div>
         </div>
 
@@ -335,23 +537,22 @@
         </div>
 
         <div class="input-row">
-          <input type="text" class="input-field" id="inputField"
-                 placeholder="Type input and press Enter…" disabled>
+          <input type="text" class="input-field" id="inputField" placeholder="Type input and press Enter…" disabled>
           <button class="btn btn-send" id="sendBtn" disabled>Send</button>
         </div>
       </div>
 
-      <!-- Right: 3D Visualizer (Foxglove) -->
+      <!-- Right: 3D Visualizer (RViz via noVNC) -->
       <div class="viz-section" id="vizSection">
         <div class="viz-header">
-          <h2>🦊 Live 3D Visualizer</h2>
+          <h2>🖥️ RViz Simulation</h2>
           <span class="viz-status" id="vizStatus">Waiting for simulation…</span>
         </div>
         <div class="viz-frame-wrap" id="vizFrameWrap">
           <div class="viz-placeholder" id="vizPlaceholder">
             <div class="icon">🤖</div>
-            <p>Start a simulation to see the<br>live 3D robot view here.</p>
-            <small>Powered by Foxglove Studio — WebGL 3D visualization</small>
+            <p>Start a simulation to see the<br>live RViz robot view here.</p>
+            <small>Powered by noVNC — Virtual Desktop Stream</small>
           </div>
           <iframe id="vizFrame" src="" style="display:none; width:100%; height:100%; border:none;"></iframe>
         </div>
@@ -365,58 +566,53 @@
 
     let currentProject = null;
     let processRunning = false;
-    let foxgloveEnabled = false;
+    let rvizEnabled = false;
 
     // ── Detect server environment ─────────────────────────────────────────────
     fetch('/api/env')
       .then(r => r.json())
       .then(env => {
-        foxgloveEnabled = env.foxgloveBridge;
-        if (foxgloveEnabled) {
-          document.getElementById('mainLayout').classList.add('has-foxglove');
+        rvizEnabled = env.rvizVnc;
+        if (rvizEnabled) {
+          document.getElementById('mainLayout').classList.add('has-rviz');
         }
       })
       .catch(() => console.log('Could not fetch /api/env'));
 
-    // ── Build Foxglove embed URL ──────────────────────────────────────────────
-    function buildFoxgloveUrl() {
-      // Determine the WebSocket URL for foxglove_bridge
-      // On Hugging Face Spaces, traffic goes through wss on port 443, same host
-      // foxglove_bridge runs on ws://localhost:8765 but HF routes won't expose it directly.
-      // We use the public URL of the Space and pass it as the ws datasource.
-      // The space proxies ws connections through the same 7860 port via the path /foxglove-ws
+    // ── Build noVNC embed URL ─────────────────────────────────────────────────
+    function buildVncUrl() {
+      // The space proxies ws connections through the same 7860 port via the path /websockify
       const isHF = window.location.hostname.includes('hf.space');
-      let wsUrl;
+      let wsPath;
       if (isHF) {
-        // On HF Spaces: server.js proxies /foxglove-ws → ws://localhost:8765
-        wsUrl = `wss://${window.location.host}/foxglove-ws`;
+        wsPath = `websockify`; // Use path relative to current domain
       } else {
-        wsUrl = `ws://${window.location.hostname}:8765`;
+        wsPath = `websockify`;
       }
-      const encodedWs = encodeURIComponent(wsUrl);
-      return `https://embed.foxglove.dev/?ds=foxglove-websocket&ds.url=${encodedWs}`;
+      return `/novnc/vnc_lite.html?path=${wsPath}&scale=true&autoconnect=true`;
     }
 
     // ── Activate 3D visualizer when simulation starts ─────────────────────────
     function activateViz() {
-      if (!foxgloveEnabled) return;
+      if (!rvizEnabled) return;
       const frame = document.getElementById('vizFrame');
       const placeholder = document.getElementById('vizPlaceholder');
       const status = document.getElementById('vizStatus');
 
-      // Wait ~3s for foxglove_bridge to initialize, then load
+      // Wait 5s for RViz to launch & render, then load noVNC
       setTimeout(() => {
-        frame.src = buildFoxgloveUrl();
+        frame.src = buildVncUrl();
         frame.style.display = 'block';
         placeholder.style.display = 'none';
         status.textContent = 'Live ●';
+        status.style.color = '';
         status.className = 'viz-status live';
-      }, 3000);
+      }, 5000);
     }
 
-    // ── Deactivate 3D visualizer ──────────────────────────────────────────────
-    function deactivateViz() {
-      if (!foxgloveEnabled) return;
+    // ── Reset the visualizer (called at start of a new project) ──────────────
+    function resetViz() {
+      if (!rvizEnabled) return;
       const frame = document.getElementById('vizFrame');
       const placeholder = document.getElementById('vizPlaceholder');
       const status = document.getElementById('vizStatus');
@@ -424,7 +620,13 @@
       frame.style.display = 'none';
       placeholder.style.display = 'flex';
       status.textContent = 'Waiting for simulation…';
+      status.style.color = '';
       status.className = 'viz-status';
+    }
+
+    // ── Deactivate 3D visualizer (not used automatically anymore) ──────────
+    function deactivateViz() {
+      resetViz();
     }
 
     const ALL_PROJECTS = ['ros_2', 'ros_3', 'ros_4'];
@@ -464,6 +666,8 @@
       setCardStates(projectId, 'running');
       setControls(true);
       showBanner(projectId);
+      // Reset viz panel for new project, then activate
+      resetViz();
       activateViz();
     });
 
@@ -473,7 +677,13 @@
       setAllCardsNormal();
       setControls(false);
       hideBanner();
-      deactivateViz();
+      // Do NOT deactivate the viz — keep RViz panel showing after simulation ends
+      // so the user can still see the final state.
+      const status = document.getElementById('vizStatus');
+      if (status && status.classList.contains('live')) {
+        status.textContent = 'Simulation ended ⬤';
+        status.style.color = '#ffb347';
+      }
       appendLine({ type: 'info', message: `⏹ ${LABELS[projectId] || projectId} stopped.` });
     });
 
@@ -482,7 +692,7 @@
       setAllCardsNormal();
       setControls(false);
       hideBanner();
-      deactivateViz();
+      // Keep viz visible on disconnect too
     });
 
     // ── Actions ───────────────────────────────────────────────────────────────
@@ -521,8 +731,8 @@
 
     function setControls(running) {
       document.getElementById('inputField').disabled = !running;
-      document.getElementById('sendBtn').disabled    = !running;
-      document.getElementById('stopBtn').disabled    = !running;
+      document.getElementById('sendBtn').disabled = !running;
+      document.getElementById('stopBtn').disabled = !running;
     }
 
     function setBadge(projectId, cls, text) {
@@ -532,8 +742,8 @@
       b.innerHTML = cls === 'running'
         ? `<span class="spinner"></span> Running`
         : cls === 'building'
-        ? `<span class="spinner"></span> ${text}`
-        : text;
+          ? `<span class="spinner"></span> ${text}`
+          : text;
     }
 
     function setCardStates(activeId, state) {
@@ -574,4 +784,5 @@
     }
   </script>
 </body>
+
 </html>

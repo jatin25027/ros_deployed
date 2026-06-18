@@ -1,10 +1,10 @@
 # ── HuggingFace Spaces Dockerfile ────────────────────────────────────────────
 FROM osrf/ros:humble-desktop
 
-# Install NodeJS 20 + Foxglove Bridge
+# Install NodeJS 20 + Virtual Desktop stack (Xvfb, noVNC)
 RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs ros-humble-foxglove-bridge && \
+    apt-get install -y nodejs xvfb x11vnc fluxbox novnc websockify net-tools && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user (Hugging Face runs with UID 1000)
@@ -40,10 +40,11 @@ ENV AMENT_PREFIX_PATH=/opt/ros/humble
 ENV ROS_DISTRO=humble
 ENV PYTHONPATH=/opt/ros/humble/local/lib/python3.10/dist-packages
 ENV PORT=7860
-# Tell the app that Foxglove Bridge is available
-ENV FOXGLOVE_BRIDGE=true
+# Virtual Display config
+ENV DISPLAY=:99
+ENV LIBGL_ALWAYS_SOFTWARE=1
 
 EXPOSE 7860
 
-# Directly launch node server
-CMD ["node", "server.js"]
+# Directly launch node server via startup script
+CMD ["bash", "start.sh"]

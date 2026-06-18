@@ -10,3 +10,7 @@ npm-debug.log*
 
 # Temp launch files
 *temp_interactive.launch.py
+
+# Python
+__pycache__/
+*.pyc

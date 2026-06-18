@@ -262,7 +262,7 @@ def generate_launch_description():
     pkg_dir = get_package_share_directory('robot_proximity')
     
     # Try looking in the source directory first so changes take effect without rebuilding
-    src_config_dir = '/home/jatin/ros2_assign_2_10_robo_modified_tonew/hehe_to_trutle/src/robot_proximity/config/simulation.rviz'
+    src_config_dir = '/home/iiitd/Desktop/ros_full/ros_3/src/robot_proximity/config/simulation.rviz'
     if os.path.exists(src_config_dir):
         rviz_config_dir = src_config_dir
     else:
