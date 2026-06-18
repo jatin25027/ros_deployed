@@ -542,7 +542,7 @@
         </div>
       </div>
 
-      <!-- Right: 3D Visualizer (RViz via noVNC) -->
+      <!-- Right: 3D Visualizer (RViz via xpra) -->
       <div class="viz-section" id="vizSection">
         <div class="viz-header">
           <h2>🖥️ RViz Simulation</h2>
@@ -552,7 +552,7 @@
           <div class="viz-placeholder" id="vizPlaceholder">
             <div class="icon">🤖</div>
             <p>Start a simulation to see the<br>live RViz robot view here.</p>
-            <small>Powered by noVNC — Virtual Desktop Stream</small>
+            <small>Powered by xpra — HTML5 Remote Display</small>
           </div>
           <iframe id="vizFrame" src="" style="display:none; width:100%; height:100%; border:none;"></iframe>
         </div>
@@ -579,17 +579,10 @@
       })
       .catch(() => console.log('Could not fetch /api/env'));
 
-    // ── Build noVNC embed URL ─────────────────────────────────────────────────
-    function buildVncUrl() {
-      // The space proxies ws connections through the same 7860 port via the path /websockify
-      const isHF = window.location.hostname.includes('hf.space');
-      let wsPath;
-      if (isHF) {
-        wsPath = `websockify`; // Use path relative to current domain
-      } else {
-        wsPath = `websockify`;
-      }
-      return `/novnc/vnc_lite.html?path=${wsPath}&scale=true&autoconnect=true`;
+    // ── Build xpra embed URL ───────────────────────────────────────────────────
+    function buildXpraUrl() {
+      // xpra serves its own HTML5 client; we proxy it via /xpra/
+      return `/xpra/index.html`;
     }
 
     // ── Activate 3D visualizer when simulation starts ─────────────────────────
@@ -599,15 +592,15 @@
       const placeholder = document.getElementById('vizPlaceholder');
       const status = document.getElementById('vizStatus');
 
-      // Wait 5s for RViz to launch & render, then load noVNC
+      // Wait 8s for RViz to launch & render, then load xpra
       setTimeout(() => {
-        frame.src = buildVncUrl();
+        frame.src = buildXpraUrl();
         frame.style.display = 'block';
         placeholder.style.display = 'none';
         status.textContent = 'Live ●';
         status.style.color = '';
         status.className = 'viz-status live';
-      }, 5000);
+      }, 8000);
     }
 
     // ── Reset the visualizer (called at start of a new project) ──────────────

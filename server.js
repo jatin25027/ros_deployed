@@ -13,17 +13,18 @@ const io = socketIO(server, {
   cors: { origin: '*' }
 });
 
-// ── WebSocket proxy: /websockify → websockify on :6080 via raw TCP pipe ──────
-// We forward the raw HTTP Upgrade + head bytes to websockify, then pipe both
-// directions so websockify handles the WS handshake itself (no re-framing bugs).
-const WEBSOCKIFY_PORT = 6080;
+// ── WebSocket proxy: /xpra/* → xpra HTML5 server on :6080 via raw TCP pipe ───
+// xpra has its own built-in HTML5 WebSocket client — no VNC involved.
+const XPRA_PORT = 6080;
 server.on('upgrade', (req, socket, head) => {
-  if (req.url.startsWith('/websockify')) {
-    const target = net.createConnection(WEBSOCKIFY_PORT, '127.0.0.1');
+  // Proxy WebSocket upgrades for both /xpra/ paths and socket.io
+  if (req.url.startsWith('/xpra/')) {
+    const target = net.createConnection(XPRA_PORT, '127.0.0.1');
 
     target.on('connect', () => {
-      // Forward the original HTTP Upgrade request to websockify
-      let rawRequest = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
+      // Rewrite the path: strip /xpra prefix so xpra sees its own paths
+      const rewrittenUrl = req.url.replace(/^\/xpra/, '') || '/';
+      let rawRequest = `${req.method} ${rewrittenUrl} HTTP/${req.httpVersion}\r\n`;
       for (const [k, v] of Object.entries(req.headers)) {
         rawRequest += `${k}: ${v}\r\n`;
       }
@@ -36,17 +37,22 @@ server.on('upgrade', (req, socket, head) => {
       target.pipe(socket);
     });
 
-    target.on('error', (e) => { console.error('[PROXY] target error:', e.message); socket.destroy(); });
+    target.on('error', (e) => { console.error('[XPRA-PROXY] target error:', e.message); socket.destroy(); });
     socket.on('error', () => target.destroy());
     socket.on('close', () => target.destroy());
   }
 });
 
+// ── HTTP proxy: /xpra/* → xpra HTML5 static assets on :6080 ──────────────────
+const { createProxyMiddleware } = require('http-proxy-middleware');
+app.use('/xpra', createProxyMiddleware({
+  target: 'http://127.0.0.1:6080',
+  changeOrigin: true,
+  pathRewrite: { '^/xpra': '' },
+  ws: false  // WS handled above
+}));
+
 app.use(express.static('public'));
-// noVNC location varies by distro — try multiple paths
-const NOVNC_DIRS = ['/usr/share/novnc', '/usr/share/novnc/core', '/usr/local/share/novnc'];
-const novncDir = NOVNC_DIRS.find(d => fs.existsSync(d)) || '/usr/share/novnc';
-app.use('/novnc', express.static(novncDir));
 app.use(express.json());
 
 // ── API: expose environment config to frontend ────────────────────────────────
