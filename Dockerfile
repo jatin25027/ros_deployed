@@ -1,10 +1,10 @@
 # ── HuggingFace Spaces Dockerfile ────────────────────────────────────────────
 FROM osrf/ros:humble-desktop
 
-# Install NodeJS 20 + Virtual Desktop stack (Xvfb, noVNC)
+# Install NodeJS 20
 RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs xvfb x11vnc fluxbox novnc websockify net-tools && \
+    apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user (Hugging Face runs with UID 1000)
@@ -40,11 +40,8 @@ ENV AMENT_PREFIX_PATH=/opt/ros/humble
 ENV ROS_DISTRO=humble
 ENV PYTHONPATH=/opt/ros/humble/local/lib/python3.10/dist-packages
 ENV PORT=7860
-# Virtual Display config
-ENV DISPLAY=:99
-ENV LIBGL_ALWAYS_SOFTWARE=1
 
 EXPOSE 7860
 
-# Directly launch node server via startup script
-CMD ["bash", "start.sh"]
+# Directly launch node server
+CMD ["node", "server.js"]
