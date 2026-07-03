@@ -180,22 +180,27 @@ function startDisplayStack() {
   // 2. x11vnc — wait 1.5s for Xvfb to be ready
   setTimeout(() => {
     console.log(`[VIZ] Starting x11vnc on port ${VNC_PORT}...`);
+
+    // x11vnc checks getenv("WAYLAND_DISPLAY") != NULL — even an empty string
+    // triggers Wayland detection and causes x11vnc to exit immediately.
+    // We must DELETE the key entirely from the child process environment.
+    const x11vncEnv = { ...process.env };
+    delete x11vncEnv.WAYLAND_DISPLAY;
+    x11vncEnv.DISPLAY           = VIZ_DISPLAY;
+    x11vncEnv.XDG_SESSION_TYPE  = 'x11';
+
     x11vncProc = spawn('x11vnc', [
       '-display', VIZ_DISPLAY,
       '-nopw', '-localhost',
       '-rfbport', String(VNC_PORT),
-      '-shared', '-forever', '-noxdamage'
+      '-shared', '-forever', '-noxdamage', '-loop'
     ], {
       detached: false,
       stdio: 'ignore',
-      env: {
-        ...process.env,
-        DISPLAY: VIZ_DISPLAY,
-        WAYLAND_DISPLAY: '',
-        XDG_SESSION_TYPE: 'x11'
-      }
+      env: x11vncEnv
     });
     x11vncProc.on('error', e => console.error('[VIZ] x11vnc error:', e.message));
+    x11vncProc.on('exit',  c => console.warn(`[VIZ] x11vnc exited code=${c}`));
 
     // 3. websockify — bridge VNC → WebSocket
     setTimeout(() => {
