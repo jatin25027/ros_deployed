@@ -208,7 +208,7 @@ function startDisplayStack() {
       websockifyProc = spawn('websockify', [
         '--web', NOVNC_PATH,
         String(NOVNC_PORT),
-        `localhost:${VNC_PORT}`
+        `127.0.0.1:${VNC_PORT}`
       ], { detached: false, stdio: 'ignore' });
       websockifyProc.on('error', e => console.error('[VIZ] websockify error:', e.message));
       console.log('[VIZ] Display stack ready.');
@@ -347,6 +347,6 @@ exec ros2 run robot_proximity interactive_runner
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`ROS Project Runner running on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`ROS Project Runner running on http://0.0.0.0:${PORT}`);
 });
