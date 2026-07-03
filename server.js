@@ -7,23 +7,25 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
+const HOME = os.homedir();
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server, {
   cors: { origin: '*' }
 });
 
-// ── WebSocket proxy: /xpra/* → xpra HTML5 server on :6080 via raw TCP pipe ───
-// xpra has its own built-in HTML5 WebSocket client — no VNC involved.
-const XPRA_PORT = 6080;
-server.on('upgrade', (req, socket, head) => {
-  // Proxy WebSocket upgrades for both /xpra/ paths and socket.io
-  if (req.url.startsWith('/xpra/')) {
-    const target = net.createConnection(XPRA_PORT, '127.0.0.1');
+// ── Display config ────────────────────────────────────────────────────────────
+const VIZ_DISPLAY = ':20';       // Xvfb virtual display for RViz
+const VNC_PORT    = 5920;        // x11vnc listens here
+const NOVNC_PORT  = 6080;        // websockify WebSocket → VNC bridge
 
+// ── WebSocket proxy: /vnc WebSocket → websockify on :6080 ────────────────────
+server.on('upgrade', (req, socket, head) => {
+  if (req.url.startsWith('/vnc')) {
+    const target = net.createConnection(NOVNC_PORT, '127.0.0.1');
     target.on('connect', () => {
-      // Rewrite the path: strip /xpra prefix so xpra sees its own paths
-      const rewrittenUrl = req.url.replace(/^\/xpra/, '') || '/';
+      const rewrittenUrl = req.url.replace(/^\/vnc/, '') || '/';
       let rawRequest = `${req.method} ${rewrittenUrl} HTTP/${req.httpVersion}\r\n`;
       for (const [k, v] of Object.entries(req.headers)) {
         rawRequest += `${k}: ${v}\r\n`;
@@ -31,26 +33,26 @@ server.on('upgrade', (req, socket, head) => {
       rawRequest += `\r\n`;
       target.write(rawRequest);
       if (head && head.length > 0) target.write(head);
-
-      // Pipe raw bytes both ways
       socket.pipe(target);
       target.pipe(socket);
     });
-
-    target.on('error', (e) => { console.error('[XPRA-PROXY] target error:', e.message); socket.destroy(); });
+    target.on('error', (e) => { console.error('[VNC-PROXY] error:', e.message); socket.destroy(); });
     socket.on('error', () => target.destroy());
     socket.on('close', () => target.destroy());
   }
 });
 
-// ── HTTP proxy: /xpra/* → xpra HTML5 static assets on :6080 ──────────────────
-const { createProxyMiddleware } = require('http-proxy-middleware');
-app.use('/xpra', createProxyMiddleware({
-  target: 'http://127.0.0.1:6080',
-  changeOrigin: true,
-  pathRewrite: { '^/xpra': '' },
-  ws: false  // WS handled above
-}));
+// ── Serve noVNC static assets (system install OR npm fallback) ───────────────
+const NOVNC_SYSTEM = '/usr/share/novnc';
+const NOVNC_NPM    = path.join(__dirname, 'node_modules/@novnc/novnc');
+const NOVNC_PATH   = fs.existsSync(NOVNC_SYSTEM) ? NOVNC_SYSTEM : NOVNC_NPM;
+
+if (fs.existsSync(NOVNC_PATH)) {
+  app.use('/novnc', express.static(NOVNC_PATH));
+  console.log('[VNC] Serving noVNC from', NOVNC_PATH);
+} else {
+  console.warn('[VNC] noVNC not found — install: sudo apt install novnc  OR  npm install');
+}
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -62,9 +64,7 @@ app.get('/api/env', (req, res) => {
   });
 });
 
-const HOME = os.homedir();
-const DESKTOP_PATH = path.join(HOME, 'Desktop', 'ros_full');
-const ROS_ROOT = fs.existsSync(DESKTOP_PATH) ? DESKTOP_PATH : __dirname;
+const ROS_ROOT = __dirname;
 
 const projectConfigs = {
   ros_2: {
@@ -151,10 +151,67 @@ function rosEnv(projectId) {
     ROS_DISTRO: 'humble',
     COLCON_HOME: `${HOME}/.colcon`,
     PYTHONPATH: '',
-    DISPLAY: ':99',
+    DISPLAY: VIZ_DISPLAY,
+    WAYLAND_DISPLAY: '',          // force X11 mode for RViz
+    XDG_SESSION_TYPE: 'x11',
     ROS_DOMAIN_ID: domainId
   };
 }
+
+// ── Virtual display stack: Xvfb → x11vnc → websockify ───────────────────────
+let xvfbProc = null;
+let x11vncProc = null;
+let websockifyProc = null;
+
+function startDisplayStack() {
+  console.log(`[VIZ] Starting Xvfb on ${VIZ_DISPLAY}...`);
+
+  // Kill any leftover processes from a previous run
+  try { execSync(`pkill -f 'Xvfb ${VIZ_DISPLAY}' 2>/dev/null`); } catch (_) {}
+  try { execSync(`pkill -f 'x11vnc.*:${VNC_PORT}' 2>/dev/null`); } catch (_) {}
+  try { execSync(`pkill -f 'websockify.*${NOVNC_PORT}' 2>/dev/null`); } catch (_) {}
+
+  // 1. Xvfb virtual framebuffer
+  xvfbProc = spawn('Xvfb', [VIZ_DISPLAY, '-screen', '0', '1280x800x24', '-ac'], {
+    detached: false, stdio: 'ignore'
+  });
+  xvfbProc.on('error', e => console.error('[VIZ] Xvfb error:', e.message));
+
+  // 2. x11vnc — wait 1.5s for Xvfb to be ready
+  setTimeout(() => {
+    console.log(`[VIZ] Starting x11vnc on port ${VNC_PORT}...`);
+    x11vncProc = spawn('x11vnc', [
+      '-display', VIZ_DISPLAY,
+      '-nopw', '-localhost',
+      '-rfbport', String(VNC_PORT),
+      '-shared', '-forever', '-noxdamage'
+    ], {
+      detached: false,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+        DISPLAY: VIZ_DISPLAY,
+        WAYLAND_DISPLAY: '',
+        XDG_SESSION_TYPE: 'x11'
+      }
+    });
+    x11vncProc.on('error', e => console.error('[VIZ] x11vnc error:', e.message));
+
+    // 3. websockify — bridge VNC → WebSocket
+    setTimeout(() => {
+      console.log(`[VIZ] Starting websockify on port ${NOVNC_PORT} → VNC ${VNC_PORT}...`);
+      websockifyProc = spawn('websockify', [
+        '--web', NOVNC_PATH,
+        String(NOVNC_PORT),
+        `localhost:${VNC_PORT}`
+      ], { detached: false, stdio: 'ignore' });
+      websockifyProc.on('error', e => console.error('[VIZ] websockify error:', e.message));
+      console.log('[VIZ] Display stack ready.');
+    }, 1500);
+  }, 1500);
+}
+
+startDisplayStack();
 
 // ── Socket connections ─────────────────────────────────────────────────────────
 // ── Global cleanup on server startup ───────────────────────────────────────────
