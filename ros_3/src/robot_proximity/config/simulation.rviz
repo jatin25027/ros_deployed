@@ -69,8 +69,8 @@ Visualization Manager:
       Class: rviz_default_plugins/Orbit
       Distance: 42
       Focal Point:
-        X: 4.5
-        Y: 3.5
+        X: 9.0
+        Y: 7.0
         Z: 0
       Name: Current View
       Pitch: 1.2
