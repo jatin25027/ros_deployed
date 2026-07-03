@@ -542,7 +542,7 @@
         </div>
       </div>
 
-      <!-- Right: 3D Visualizer (RViz via xpra) -->
+      <!-- Right: 3D Visualizer (RViz via noVNC) -->
       <div class="viz-section" id="vizSection">
         <div class="viz-header">
           <h2>🖥️ RViz Simulation</h2>
@@ -552,7 +552,7 @@
           <div class="viz-placeholder" id="vizPlaceholder">
             <div class="icon">🤖</div>
             <p>Start a simulation to see the<br>live RViz robot view here.</p>
-            <small>Powered by xpra — HTML5 Remote Display</small>
+            <small>Powered by noVNC — Live X11 Display Stream</small>
           </div>
           <iframe id="vizFrame" src="" style="display:none; width:100%; height:100%; border:none;"></iframe>
         </div>
@@ -579,10 +579,14 @@
       })
       .catch(() => console.log('Could not fetch /api/env'));
 
-    // ── Build xpra embed URL ───────────────────────────────────────────────────
+    // ── Build noVNC embed URL ──────────────────────────────────────────────────
     function buildXpraUrl() {
-      // xpra serves its own HTML5 client; we proxy it via /xpra/
-      return `/xpra/index.html`;
+      // noVNC client served from /novnc, WebSocket on same host via /vnc path
+      const wsHost = location.hostname;
+      const wsPort = location.port || 80;
+      const wsPath = 'vnc';
+      // Use vnc.html (full UI) instead of vnc_auto so you get the control bar to pan/zoom/fullscreen!
+      return `/novnc/vnc.html?host=${wsHost}&port=${wsPort}&path=${wsPath}&autoconnect=1&resize=scale`;
     }
 
     // ── Activate 3D visualizer when simulation starts ─────────────────────────
