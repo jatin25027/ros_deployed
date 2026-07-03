@@ -1,0 +1,14 @@
+node_modules/
+build/
+install/
+log/
+ros_2/build/
+ros_2/install/
+ros_2/log/
+ros_3/build/
+ros_3/install/
+ros_3/log/
+ros_4/build/
+ros_4/install/
+ros_4/log/
+.git/
