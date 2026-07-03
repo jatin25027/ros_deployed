@@ -583,7 +583,7 @@
     function buildXpraUrl() {
       // noVNC client served from /novnc, WebSocket on same host via /vnc path
       const wsHost = location.hostname;
-      const wsPort = location.port || 80;
+      const wsPort = location.port || (location.protocol === 'https:' ? 443 : 80);
       const wsPath = 'vnc';
       // Use vnc.html (full UI) instead of vnc_auto so you get the control bar to pan/zoom/fullscreen!
       return `/novnc/vnc.html?host=${wsHost}&port=${wsPort}&path=${wsPath}&autoconnect=1&resize=scale`;
