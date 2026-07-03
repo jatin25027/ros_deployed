@@ -40,9 +40,9 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /home/user/.bashrc
 # ── Pre-build all ROS workspaces ──────────────────────────────────────────────
 RUN /bin/bash -c "\
     source /opt/ros/humble/setup.bash && \
-    cd /app/ros_2 && colcon build --packages-select robot_proximity && \
-    cd /app/ros_3 && colcon build --packages-select robot_proximity && \
-    cd /app/ros_4 && colcon build --packages-select robot_proximity"
+    cd /app/ros_2 && colcon build --parallel-workers 1 --packages-select robot_proximity && \
+    cd /app/ros_3 && colcon build --parallel-workers 1 --packages-select robot_proximity && \
+    cd /app/ros_4 && colcon build --parallel-workers 1 --packages-select robot_proximity"
 
 # ── Runtime environment ───────────────────────────────────────────────────────
 ENV AMENT_PREFIX_PATH=/opt/ros/humble
