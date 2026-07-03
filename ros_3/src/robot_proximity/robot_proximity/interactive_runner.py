@@ -260,13 +260,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     pkg_dir = get_package_share_directory('robot_proximity')
-    
-    # Try looking in the source directory first so changes take effect without rebuilding
-    src_config_dir = '/home/iiitd/Desktop/ros_full/ros_3/src/robot_proximity/config/simulation.rviz'
-    if os.path.exists(src_config_dir):
-        rviz_config_dir = src_config_dir
-    else:
-        rviz_config_dir = os.path.join(pkg_dir, 'config', 'simulation.rviz')
+    rviz_config_dir = os.path.join(pkg_dir, 'config', 'simulation.rviz')
 
     # User Defined Robots
     robots = {robots_str}
